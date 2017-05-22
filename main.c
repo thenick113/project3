@@ -54,11 +54,11 @@ static struct sbd_device {
  * Handle an I/O request.
  */
 static void sbd_transfer(struct sbd_device *dev, sector_t sector,
-		unsigned long nsect, char *buffer, int write) {
-	unsigned long offset = sector * logical_block_size;
-	unsigned long nbytes = nsect * logical_block_size;
+    unsigned long nsect, char *buffer, int write) {
+    unsigned long offset = sector * logical_block_size;
+    unsigned long nbytes = nsect * logical_block_size;
 
-	 u8 * hex_print;
+    u8 * hex_print;
     int i = 0;
 
     if ((offset + nbytes) > dev->size) {
@@ -79,7 +79,40 @@ static void sbd_transfer(struct sbd_device *dev, sector_t sector,
         printk("sbd.c: original data:\n");
         hex_print = buffer;
         printk(hex_print, 15);
+
+        printk("sbd.c: encrypted data:\n");
+        hex_print = dev->data + offset;
+        printk_hex(hex_print, 15);
+
+//      memcpy(dev->data + offset, buffer, nbytes);
+    }
+
+
+    else { //Reading data
+        printk("sbd.c: Reading: begin decrypting...\n");
+        printk("sbd.c: given (encrypted) data:\n");
+       hex_print = dev->data + offset;
+        printk_hex(hex_print, 15);
+   
+        if(validKey){
+            for (i = 0 ; i < nbytes ; i += crypto_cipher_blocksize(tfm)){
+                crypto_cipher_decrypt_one(tfm, buffer + i, dev->data + offset + i);
+            }
+            if (i!=nbytes) printk("******************SBD block length is not fitted!!!****************"); 
+        }
+        else
+        {  memcpy(buffer, dev->data + offset, nbytes);
+        }   
+
+        printk("sbd.c: decrypted data:\n");
+        hex_print = buffer;
+        printk_hex(hex_print, 15);
+
+     // memcpy(buffer, dev->data + offset, nbytes);
+    }
+
 }
+
 
 static void sbd_request(struct request_queue *q) {
 	struct request *req;
