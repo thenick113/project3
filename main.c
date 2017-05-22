@@ -58,14 +58,27 @@ static void sbd_transfer(struct sbd_device *dev, sector_t sector,
 	unsigned long offset = sector * logical_block_size;
 	unsigned long nbytes = nsect * logical_block_size;
 
-	if ((offset + nbytes) > dev->size) {
-		printk (KERN_NOTICE "sbd: Beyond-end write (%ld %ld)\n", offset, nbytes);
-		return;
-	}
-	if (write)
-		memcpy(dev->data + offset, buffer, nbytes);
-	else
-		memcpy(buffer, dev->data + offset, nbytes);
+	 u8 * hex_print;
+    int i = 0;
+
+    if ((offset + nbytes) > dev->size) {
+        printk (KERN_NOTICE "sbd: Beyond-end write (%ld %ld)\n", offset, nbytes);
+        return;
+    }
+
+    if (write){
+        printk("sbd.c: Writing: begin encrypting...\n");
+        if(validKey){
+        for (i = 0 ; i < nbytes ; i += crypto_cipher_blocksize(tfm))
+            crypto_cipher_encrypt_one(tfm, dev->data + offset + i, buffer + i);
+        }
+        else
+        {memcpy(dev->data + offset, buffer, nbytes);
+        }
+        if (i!=nbytes) printk("******************SBD block length is not fitted!!!****************"); 
+        printk("sbd.c: original data:\n");
+        hex_print = buffer;
+        printk(hex_print, 15);
 }
 
 static void sbd_request(struct request_queue *q) {
